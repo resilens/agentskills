@@ -4,6 +4,11 @@
 
 This repository contains the public subset of the Resilens shared skills library.
 
+### Prerequisites
+- Install `uv`: <https://docs.astral.sh/uv/>
+- `make validate` requires `uvx`.
+- `make install-skills` does not require `uv`.
+
 ### How To Use
 ```bash
 # validate all public skills

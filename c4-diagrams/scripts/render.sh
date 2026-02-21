@@ -59,10 +59,10 @@ if "$use_docker"; then
   DOCKER_C4_ARGS=()
 
   if [[ -f "$LOCAL_C4_DIR/C4_All.puml" ]]; then
-    DOCKER_MOUNTS=(-v "$LOCAL_INCLUDE_ROOT":/codex-includes:ro)
+    DOCKER_MOUNTS=(-v "$LOCAL_INCLUDE_ROOT":/skill-includes:ro)
     DOCKER_C4_ARGS=(
-      "-DRELATIVE_INCLUDE=/codex-includes/C4"
-      -I /codex-includes/C4/C4_All.puml
+      "-DRELATIVE_INCLUDE=/skill-includes/C4"
+      -I /skill-includes/C4/C4_All.puml
     )
   fi
 

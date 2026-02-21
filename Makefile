@@ -3,9 +3,8 @@
 # Destination directory for installed skills.
 # Override as needed, e.g. `make install-skills SKILLS_DIR=/path/to/skills`.
 SKILLS_DIR ?= $(HOME)/.agents/skills
-SKIP ?=
 SKILL_DIRS := $(patsubst %/SKILL.md,%,$(wildcard */SKILL.md))
-TARGET_SKILLS := $(filter-out $(SKIP),$(SKILL_DIRS))
+TARGET_SKILLS := $(SKILL_DIRS)
 
 help: ## output help for all targets
 	@echo "Public Resilens skills"
@@ -16,7 +15,7 @@ help: ## output help for all targets
 		$(MAKEFILE_LIST)
 
 ### Skill workflow
-validate: $(TARGET_SKILLS:%=%/SKILL.md) ## Validate public skills (all by default, or SKIP=<dir>)
+validate: $(TARGET_SKILLS:%=%/SKILL.md) ## Validate all public skills
 	@if [ -z "$(TARGET_SKILLS)" ]; then \
 		printf "No skills found (expected */SKILL.md).\n"; \
 		exit 1; \

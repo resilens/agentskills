@@ -16,11 +16,6 @@ make install-skills
 make install-skills SKILLS_DIR=/path/to/skills
 ```
 
-You can skip specific skills during install or validation:
-```bash
-make install-skills SKIP="c4-diagrams"
-```
-
 ### Structure
 - Each skill lives in its own directory and includes a `SKILL.md`.
 

@@ -4,6 +4,23 @@
 
 This repository contains the public subset of the Resilens shared skills library.
 
+### How To Use
+```bash
+# validate all public skills
+make validate
+
+# install all public skills to the default location (~/.agents/skills)
+make install-skills
+
+# install to a custom destination used by your agent runtime
+make install-skills SKILLS_DIR=/path/to/skills
+```
+
+You can skip specific skills during install or validation:
+```bash
+make install-skills SKIP="c4-diagrams"
+```
+
 ### Structure
 - Each skill lives in its own directory and includes a `SKILL.md`.
 

@@ -19,6 +19,9 @@ make install-skills SKILLS_DIR=/path/to/skills
 ### Structure
 - Each skill lives in its own directory and includes a `SKILL.md`.
 
+### Documentation
+- [Using skills with coding agents](docs/using-skills-with-agents.md)
+
 ### Skills
 Current public skills:
 

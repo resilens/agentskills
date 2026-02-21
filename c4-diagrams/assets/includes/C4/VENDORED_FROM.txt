@@ -1,0 +1,4 @@
+Source: https://github.com/plantuml-stdlib/C4-PlantUML.git
+Ref: master
+Commit: ef4d84fc78410ad6dfe4fbdb77a9ec4ed947fd1c
+Date: 2026-02-08

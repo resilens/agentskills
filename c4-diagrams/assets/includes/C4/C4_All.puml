@@ -1,0 +1,5 @@
+' Preload all C4 levels from the local vendored bundle.
+' RELATIVE_INCLUDE must point at this folder.
+!include_once RELATIVE_INCLUDE/C4_Dynamic.puml
+!include_once RELATIVE_INCLUDE/C4_Deployment.puml
+!include_once RELATIVE_INCLUDE/C4_Sequence.puml

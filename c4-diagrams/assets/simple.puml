@@ -1,0 +1,6 @@
+@startuml
+Person(user, "User", "A user of the system")
+System(system, "My System", "Does something useful")
+
+Rel(user, system, "Uses")
+@enduml

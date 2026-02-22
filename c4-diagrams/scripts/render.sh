@@ -27,12 +27,34 @@ die() {
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+print_c4_macro_hint() {
+  cat >&2 <<EOF
+$SELF_NAME: hint: If C4 macros are undefined, check:
+$SELF_NAME: hint: - $LOCAL_C4_DIR/C4_All.puml contains Context/Container/Component/Dynamic/Deployment/Sequence includes
+$SELF_NAME: hint: - RELATIVE_INCLUDE points to the vendored C4 folder (currently injected by this wrapper)
+EOF
+}
+
+run_with_c4_hint() {
+  set +e
+  "$@"
+  status=$?
+  set -e
+  if [[ $status -ne 0 ]]; then
+    print_c4_macro_hint
+  fi
+  return $status
+}
+
 LOCAL_C4_ARGS=()
 if [[ -f "$LOCAL_C4_DIR/C4_All.puml" ]]; then
   LOCAL_C4_ARGS=(
     "-DRELATIVE_INCLUDE=${LOCAL_C4_DIR}"
     -I "$LOCAL_C4_DIR/C4_All.puml"
   )
+else
+  printf '%s: warning: C4 preload bundle not found at %s; C4 macros may be undefined without explicit !include lines.\n' \
+    "$SELF_NAME" "$LOCAL_C4_DIR/C4_All.puml" >&2
 fi
 
 # If a real plantuml exists and this script isn't shadowing itself (PATH recursion), use it.
@@ -40,7 +62,8 @@ if have plantuml; then
   # Resolve the first plantuml found in PATH (might be this wrapper if named plantuml).
   PLANTUML_PATH="$(command -v plantuml || true)"
   if [[ -n "${PLANTUML_PATH}" && "${PLANTUML_PATH}" != "$0" ]]; then
-    exec plantuml "${LOCAL_C4_ARGS[@]}" "$@"
+    run_with_c4_hint plantuml "${LOCAL_C4_ARGS[@]}" "$@"
+    exit $?
   fi
 fi
 
@@ -86,10 +109,11 @@ if "$use_docker"; then
 
   # Run PlantUML in Docker.
   # -i is needed to support -pipe/stdin use-cases.
-  exec docker run --rm -i \
+  run_with_c4_hint docker run --rm -i \
     -v "$WORKDIR":/work -w /work \
     "${DOCKER_MOUNTS[@]}" \
     "$IMAGE" "${DOCKER_C4_ARGS[@]}" "$@"
+  exit $?
 fi
 
 # Remote fallback (last resort)

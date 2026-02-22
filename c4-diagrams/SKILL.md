@@ -46,9 +46,11 @@ When used inside a repository:
 - Subfolders are allowed and encouraged for scoping, e.g. `$REPO_ROOT/docs/diagrams/subsystem`.
 - After creating or updating a `.puml` file, run `scripts/render.sh` on it to
   keep the output updated.
+- Run `make smoke` in this skill directory after changing vendored C4 includes
+  or `scripts/render.sh` to verify all C4 levels still render.
 - For C4 sets, always generate an explorer HTML page with
-  `scripts/build_explorer.sh` so context/container/component (and optional
-  deployment/sequence) can be explored on one page.
+  `scripts/build_explorer.sh`. Use flat mode for small repos and manifest mode
+  for complex repos with multiple systems/containers/components.
 - When a user asks for diagrams, always render a PNG by default as part of the
   response; treat rendering as implicit (do not ask separately).
 - Honor user requests for SVG in addition to the default PNG.
@@ -58,22 +60,45 @@ When used inside a repository:
 When creating a C4 set, produce these artifacts by default:
 - Individual rendered diagrams for:
   - System Landscape (if provided)
-  - System Context
-  - Container
-  - Component
+  - Per-system Context and Container
+  - Per-container Component diagrams (only for architecturally important or
+    confusing containers)
   - Deployment (if provided)
-  - Sequence (if provided)
-- One interactive explorer HTML page that can switch between all available
-  views and collapse/expand sections.
+  - Sequence (if provided, one or more scenarios)
+- One interactive explorer HTML page that supports:
+  - Compact mode for small repos
+  - Hierarchical navigation for complex repos (Landscape -> System ->
+    Container -> Component)
 
-Use this naming convention:
-- `<basename>-landscape.(svg|png)` (optional)
-- `<basename>-context.(svg|png)`
-- `<basename>-container.(svg|png)`
-- `<basename>-component.(svg|png)`
-- `<basename>-deployment.(svg|png)` (optional)
-- `<basename>-sequence.(svg|png)` (optional)
+Recommended naming conventions (manifest paths are authoritative):
+- Small repos:
+  - `<basename>-landscape.(svg|png)` (optional)
+  - `<basename>-context.(svg|png)`
+  - `<basename>-container.(svg|png)`
+  - `<basename>-component.(svg|png)`
+  - `<basename>-deployment.(svg|png)` (optional)
+  - `<basename>-sequence.(svg|png)` (optional)
+- Complex repos:
+  - `<system>-context.(svg|png)`
+  - `<system>-container.(svg|png)`
+  - `<system>-deployment.(svg|png)` (optional)
+  - `<system>-sequence-<scenario>.(svg|png)` (optional)
+  - `<system>-<container>-components.(svg|png)`
 - `<basename>-c4-explorer.html`
+
+## C4 Planning Step (Do This Before Drawing)
+
+Before generating diagrams, plan the C4 scope explicitly:
+- Identify whether this repo is one system or multiple systems.
+- If multiple systems, create a System Landscape and list the systems to model.
+- For each system, create:
+  - System Context
+  - Container diagram
+- For each system, list containers that actually need component diagrams.
+- Create component diagrams only for containers that are architecturally
+  important, complex, or unclear.
+- Add Deployment and Sequence diagrams only where they clarify runtime behavior
+  or a critical scenario.
 
 ## Always render, always validate
 
@@ -85,6 +110,24 @@ When using the skill, always remember:
   regarding layout:
   - it should be preferably landscape
   - no overlapping text labels
+  - context/container diagrams should use the 2D space (avoid tall one-column
+    "string" layouts)
+
+### Layout stabilization rule (required for larger L1/L2 diagrams)
+
+For **System Context** and **Container** diagrams with more than 4 elements
+(actors/systems/containers), do not rely on generic `Rel(...)` edges alone.
+Use this rule:
+
+- Add `LAYOUT_LANDSCAPE()` before element declarations.
+- Anchor at least 3 placements with directional relationships (`Rel_L`, `Rel_R`,
+  `Rel_U`, `Rel_D`).
+- Use `Lay_*` macros to spread peer elements and avoid single-column stacking.
+- Re-render and adjust if the result is a tall/linear chain instead of a
+  balanced 2D layout.
+
+This rule is intentionally not required for very small diagrams (3-4 nodes),
+where pure auto-layout is often fine.
 
 ## C4
 
@@ -190,7 +233,12 @@ cat assets/simple.puml | scripts/render.sh -tsvg -pipe > simple.svg
 
 ## Interactive Explorer Output
 
-Use `scripts/build_explorer.sh` to produce a one-page C4 explorer:
+Use `scripts/build_explorer.sh` to produce a one-page C4 explorer.
+
+### Mode 1: Small Repo Mode (flat flags, default/simple)
+
+Use this when the repo maps cleanly to one main system and one primary
+component diagram.
 
 ```bash
 scripts/build_explorer.sh \
@@ -205,39 +253,129 @@ scripts/build_explorer.sh \
   --sequence docs/diagrams/payments-sequence.svg
 ```
 
-Behavior:
-- `--context`, `--container`, and `--component` are required and must exist.
+Flat mode behavior:
+- `--context`, `--container`, and `--component` are required.
+- `--landscape`, `--deployment`, and `--sequence` are optional.
 - `README.md` is read by default and the first meaningful paragraph is shown at
   the top as a short system description. Override with `--readme <path>`.
-- `--landscape`, `--deployment`, and `--sequence` are optional; missing
-  optional files are omitted from the page.
-- The page includes top switch buttons and collapsible sections. Opening one
-  section collapses the others.
+- The explorer auto-renders in compact mode for small repos.
+
+### Mode 2: Complex Repo Mode (hierarchical manifest)
+
+Use a JSON manifest when the repo contains multiple systems, multiple
+containers, and multiple component diagrams.
+
+```bash
+scripts/build_explorer.sh \
+  --manifest docs/diagrams/c4-explorer.json \
+  --out docs/diagrams/platform-c4-explorer.html
+```
+
+You can override manifest metadata at runtime:
+
+```bash
+scripts/build_explorer.sh \
+  --manifest docs/diagrams/c4-explorer.json \
+  --out docs/diagrams/platform-c4-explorer.html \
+  --title "Platform C4 Explorer" \
+  --readme README.md
+```
+
+Manifest mode behavior:
+- `--manifest` and the flat diagram flags are mutually exclusive.
+- Hierarchy comes from the manifest (Landscape -> Systems -> Containers ->
+  Components).
+- `readme` and diagram paths in the manifest are resolved relative to the
+  manifest file location by default. CLI overrides like `--readme` are resolved
+  relative to the current working directory.
+- Context and Container diagrams are required per system.
+- Component diagrams are required for each declared component entry.
+- Missing optional Landscape/Deployment/Sequence diagrams are skipped with a
+  warning.
+- The explorer auto-renders tree navigation for complex repos and compact mode
+  for smaller manifests.
+
+### Manifest Schema (JSON)
+
+```json
+{
+  "title": "Payments Platform",
+  "readme": "README.md",
+  "landscape": "docs/diagrams/payments-landscape.svg",
+  "systems": [
+    {
+      "id": "payments_core",
+      "name": "Payments Core",
+      "context": "docs/diagrams/payments-core-context.svg",
+      "container": "docs/diagrams/payments-core-container.svg",
+      "deployment": "docs/diagrams/payments-core-deployment.svg",
+      "sequences": [
+        {
+          "id": "auth_flow",
+          "name": "Payment Authorization Flow",
+          "diagram": "docs/diagrams/payments-core-sequence-auth.svg"
+        }
+      ],
+      "containers": [
+        {
+          "id": "api",
+          "name": "Payments API",
+          "components": [
+            {
+              "id": "api_components",
+              "name": "API Components",
+              "diagram": "docs/diagrams/payments-api-components.svg"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Manifest checklist:
+- Use stable IDs (`id`) for systems, containers, sequences, and components.
+- Keep `readme` and diagram paths relative to the manifest file when possible.
+- Declare only the component diagrams that add architectural value.
+- Add multiple sequence diagrams only for important scenarios.
+
+### Explorer UI behavior
+
+- Header includes:
+  - C4 intro paragraph and link to the C4 model
+  - README-derived system summary paragraph
 - Clicking a diagram opens it in a fullscreen viewer; close with Escape,
   backdrop click, or the close button.
 - Prefer SVG inputs when available; use PNG otherwise.
 
-### End-to-end example (landscape + 5 views + explorer)
+### Smoke test workflow (C4 preload validation)
+
+Use the built-in smoke test to catch regressions in the vendored C4 preload
+bundle or render wrapper:
 
 ```bash
-cat docs/diagrams/payments-landscape.puml | scripts/render.sh -tsvg -pipe > docs/diagrams/payments-landscape.svg
-cat docs/diagrams/payments-context.puml | scripts/render.sh -tsvg -pipe > docs/diagrams/payments-context.svg
-cat docs/diagrams/payments-container.puml | scripts/render.sh -tsvg -pipe > docs/diagrams/payments-container.svg
-cat docs/diagrams/payments-component.puml | scripts/render.sh -tsvg -pipe > docs/diagrams/payments-component.svg
-cat docs/diagrams/payments-deployment.puml | scripts/render.sh -tsvg -pipe > docs/diagrams/payments-deployment.svg
-cat docs/diagrams/payments-sequence.puml | scripts/render.sh -tsvg -pipe > docs/diagrams/payments-sequence.svg
-
-scripts/build_explorer.sh \
-  --out docs/diagrams/payments-c4-explorer.html \
-  --title "Payments Architecture C4" \
-  --readme README.md \
-  --landscape docs/diagrams/payments-landscape.svg \
-  --context docs/diagrams/payments-context.svg \
-  --container docs/diagrams/payments-container.svg \
-  --component docs/diagrams/payments-component.svg \
-  --deployment docs/diagrams/payments-deployment.svg \
-  --sequence docs/diagrams/payments-sequence.svg
+cd public/c4-diagrams
+make smoke
 ```
+
+This renders minimal diagrams for:
+- context
+- container
+- component
+- dynamic
+- sequence
+- deployment
+
+The command fails if any render fails.
+
+Optional layout heuristic helper:
+- `scripts/check_layout_aspect.sh <svg>` warns when a diagram is suspiciously
+  tall (e.g., top-down "string" layout instead of balanced 2D usage).
+- `scripts/smoke_test.sh` runs this check automatically for context/container
+  smoke outputs.
+- Set `C4_LAYOUT_FAIL_ON_WARN=1` to make suspicious aspect ratios fail CI/smoke
+  runs.
 
 
 ## C4-PlantUML
@@ -266,7 +404,15 @@ Rel(user, system, "Uses")
 
 Prefer the vendored local bundle. `scripts/render.sh` preloads
 `assets/includes/C4/C4_All.puml` and sets `RELATIVE_INCLUDE` to the local bundle path,
-so C4 macros are available without adding any include line in your diagram.
+so the full C4 macro stack is available without adding any include line in your
+diagram:
+- `C4_Context` (system landscape/context macros such as `Person`, `System`,
+  `System_Ext`, `Rel`, `Rel_*`, `Lay_*`)
+- `C4_Container`
+- `C4_Component`
+- `C4_Dynamic`
+- `C4_Deployment`
+- `C4_Sequence`
 
 ``` plantuml
 ' Preferred with this skill: no explicit include required.
@@ -275,6 +421,27 @@ so C4 macros are available without adding any include line in your diagram.
 ' Optional fallback if you do not use scripts/render.sh:
 ' !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 ```
+
+## Troubleshooting C4 include/preload failures
+
+Common symptoms:
+- `Unknown keyword` / `Undefined procedure` for macros like `Person`, `System`,
+  `Rel`, `Container`, `Component`, `RelIndex`, or `Deployment_Node`
+- Diagram renders only when you add explicit `!include` lines
+
+Checks:
+- Confirm you are rendering via `scripts/render.sh` (not raw `plantuml`)
+- Confirm `assets/includes/C4/C4_All.puml` includes the full C4 set (Context,
+  Container, Component, Dynamic, Deployment, Sequence)
+- Confirm `RELATIVE_INCLUDE` points at the vendored `assets/includes/C4`
+  directory (the wrapper injects this automatically)
+- Run `make smoke` in `public/c4-diagrams` to validate preloading across all C4
+  levels
+- Run `scripts/check_layout_aspect.sh <diagram.svg>` if a context/container
+  diagram looks suspiciously tall or linear
+
+If `scripts/render.sh` fails, it may print a hint about checking
+`C4_All.puml` contents and the injected `RELATIVE_INCLUDE` path.
 
 ### Layout orientation
 
@@ -333,6 +500,49 @@ Lay_Distance(a, LEGEND(), 2)
   * Re-ordering your element declarations
   * Using hidden/"invisible" relationships to enforce grouping or ranking
   * Minimizing forced placements only where really needed
+
+### Balanced 2D template (default pattern for Context/Container diagrams)
+
+When a Context or Container diagram starts rendering as a vertical chain, use a
+"hub-and-spoke" layout pattern around the primary system/container instead of a
+linear `Rel(...)` chain.
+
+Template (adapt names/macros to Context vs Container level):
+
+```plantuml
+@startuml
+' C4 macros are auto-loaded by scripts/render.sh
+LAYOUT_LANDSCAPE()
+left to right direction
+
+' Place the primary system/container near the center
+Person(user, "Primary User", "Main actor")
+Person(admin, "Admin", "Operations/maintenance")
+System(system, "My System", "System in scope")
+System_Ext(ext_api, "External API", "Upstream/downstream integration")
+System_Ext(ext_queue, "Message Broker", "Async messaging")
+System_Ext(ext_store, "Data Store", "Persistence / files")
+
+' Anchor positions (use directional relations for placement + semantics)
+Rel_R(user, system, "Uses")
+Rel_D(admin, system, "Administers")
+Rel_R(system, ext_api, "Calls")
+Rel_D(system, ext_queue, "Publishes/Consumes")
+Rel_L(ext_store, system, "Stores state for")
+
+' Optional peer spacing hints to use 2D space better
+Lay_U(user, admin)
+Lay_R(ext_api, ext_queue)
+Lay_D(ext_queue, ext_store)
+@enduml
+```
+
+Practical guidance:
+- Put the system-in-scope near the center of the diagram.
+- Group humans/actors on one side and external systems on the opposite side.
+- Use `Rel_*` for the primary placement hints, then `Lay_*` only to nudge.
+- If a diagram is still too tall, reduce crossings by reordering declarations
+  before adding more layout constraints.
 
 ### Use sprites/icons and hyperlinks to enrich elements
 

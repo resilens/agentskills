@@ -19,6 +19,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 LOCAL_INCLUDE_ROOT="${C4_LOCAL_INCLUDE_ROOT:-$SKILL_ROOT/assets/includes}"
 LOCAL_C4_DIR="$LOCAL_INCLUDE_ROOT/C4"
+DEFAULT_C4_BUNDLE="C4_All.puml"
+SEQUENCE_C4_BUNDLE="C4_All_Sequence_Last.puml"
 
 die() {
   printf '%s: %s\n' "$SELF_NAME" "$*" >&2
@@ -30,8 +32,10 @@ have() { command -v "$1" >/dev/null 2>&1; }
 print_c4_macro_hint() {
   cat >&2 <<EOF
 $SELF_NAME: hint: If C4 macros are undefined, check:
-$SELF_NAME: hint: - $LOCAL_C4_DIR/C4_All.puml contains Context/Container/Component/Dynamic/Deployment/Sequence includes
+$SELF_NAME: hint: - $LOCAL_C4_DIR/$DEFAULT_C4_BUNDLE contains structural C4 includes
+$SELF_NAME: hint: - $LOCAL_C4_DIR/$SEQUENCE_C4_BUNDLE exists for C4-styled sequence diagrams
 $SELF_NAME: hint: - RELATIVE_INCLUDE points to the vendored C4 folder (currently injected by this wrapper)
+$SELF_NAME: hint: - For C4 sequence diagrams with Boundary_End(), use --c4-sequence (or rely on auto-detection)
 EOF
 }
 
@@ -46,15 +50,85 @@ run_with_c4_hint() {
   return $status
 }
 
+detect_c4_sequence_markers() {
+  # Heuristic: markers specific to C4-styled sequence usage / overrides.
+  grep -Eq '(^|[^A-Za-z_])(Boundary_End|SHOW_INDEX|SHOW_FOOT_BOXES|SHOW_ELEMENT_DESCRIPTIONS)\s*\('
+}
+
+FORCE_SEQUENCE_MODE=false
+PIPE_MODE=false
+INPUT_FILE=""
+PASSTHRU_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --c4-sequence)
+      FORCE_SEQUENCE_MODE=true
+      ;;
+    -pipe)
+      PIPE_MODE=true
+      PASSTHRU_ARGS+=("$arg")
+      ;;
+    -*)
+      PASSTHRU_ARGS+=("$arg")
+      ;;
+    *)
+      if [[ -z "$INPUT_FILE" ]]; then
+        INPUT_FILE="$arg"
+      fi
+      PASSTHRU_ARGS+=("$arg")
+      ;;
+  esac
+done
+
+STDIN_CAPTURE=""
+SEQUENCE_MODE=false
+
+if "$FORCE_SEQUENCE_MODE"; then
+  SEQUENCE_MODE=true
+elif "$PIPE_MODE"; then
+  STDIN_CAPTURE="$(mktemp)"
+  cat > "$STDIN_CAPTURE"
+  if detect_c4_sequence_markers < "$STDIN_CAPTURE"; then
+    SEQUENCE_MODE=true
+    printf '%s: detected C4 sequence markers in stdin, using sequence-safe preload bundle.\n' "$SELF_NAME" >&2
+  fi
+elif [[ -n "$INPUT_FILE" && -f "$INPUT_FILE" ]]; then
+  if detect_c4_sequence_markers < "$INPUT_FILE"; then
+    SEQUENCE_MODE=true
+    printf '%s: detected C4 sequence markers in %s, using sequence-safe preload bundle.\n' "$SELF_NAME" "$INPUT_FILE" >&2
+  fi
+fi
+
+cleanup_stdin_capture() {
+  if [[ -n "${STDIN_CAPTURE:-}" && -f "$STDIN_CAPTURE" ]]; then
+    rm -f "$STDIN_CAPTURE"
+  fi
+}
+trap cleanup_stdin_capture EXIT
+
+C4_BUNDLE="$DEFAULT_C4_BUNDLE"
+if "$SEQUENCE_MODE"; then
+  C4_BUNDLE="$SEQUENCE_C4_BUNDLE"
+fi
+
 LOCAL_C4_ARGS=()
-if [[ -f "$LOCAL_C4_DIR/C4_All.puml" ]]; then
+if [[ -f "$LOCAL_C4_DIR/$C4_BUNDLE" ]]; then
   LOCAL_C4_ARGS=(
     "-DRELATIVE_INCLUDE=${LOCAL_C4_DIR}"
-    -I "$LOCAL_C4_DIR/C4_All.puml"
+    -I "$LOCAL_C4_DIR/$C4_BUNDLE"
+  )
+elif [[ -f "$LOCAL_C4_DIR/$DEFAULT_C4_BUNDLE" ]]; then
+  if [[ "$C4_BUNDLE" == "$SEQUENCE_C4_BUNDLE" ]]; then
+    printf '%s: warning: sequence bundle missing (%s); falling back to %s. C4 sequence boundaries may fail.\n' \
+      "$SELF_NAME" "$LOCAL_C4_DIR/$SEQUENCE_C4_BUNDLE" "$DEFAULT_C4_BUNDLE" >&2
+  fi
+  LOCAL_C4_ARGS=(
+    "-DRELATIVE_INCLUDE=${LOCAL_C4_DIR}"
+    -I "$LOCAL_C4_DIR/$DEFAULT_C4_BUNDLE"
   )
 else
   printf '%s: warning: C4 preload bundle not found at %s; C4 macros may be undefined without explicit !include lines.\n' \
-    "$SELF_NAME" "$LOCAL_C4_DIR/C4_All.puml" >&2
+    "$SELF_NAME" "$LOCAL_C4_DIR/$DEFAULT_C4_BUNDLE" >&2
 fi
 
 # If a real plantuml exists and this script isn't shadowing itself (PATH recursion), use it.
@@ -62,7 +136,11 @@ if have plantuml; then
   # Resolve the first plantuml found in PATH (might be this wrapper if named plantuml).
   PLANTUML_PATH="$(command -v plantuml || true)"
   if [[ -n "${PLANTUML_PATH}" && "${PLANTUML_PATH}" != "$0" ]]; then
-    run_with_c4_hint plantuml "${LOCAL_C4_ARGS[@]}" "$@"
+    if "$PIPE_MODE" && [[ -n "$STDIN_CAPTURE" ]]; then
+      run_with_c4_hint plantuml "${LOCAL_C4_ARGS[@]}" "${PASSTHRU_ARGS[@]}" < "$STDIN_CAPTURE"
+    else
+      run_with_c4_hint plantuml "${LOCAL_C4_ARGS[@]}" "${PASSTHRU_ARGS[@]}"
+    fi
     exit $?
   fi
 fi
@@ -81,11 +159,21 @@ if "$use_docker"; then
   DOCKER_MOUNTS=()
   DOCKER_C4_ARGS=()
 
-  if [[ -f "$LOCAL_C4_DIR/C4_All.puml" ]]; then
+  if [[ -f "$LOCAL_C4_DIR/$C4_BUNDLE" ]]; then
     DOCKER_MOUNTS=(-v "$LOCAL_INCLUDE_ROOT":/skill-includes:ro)
     DOCKER_C4_ARGS=(
       "-DRELATIVE_INCLUDE=/skill-includes/C4"
-      -I /skill-includes/C4/C4_All.puml
+      -I "/skill-includes/C4/$C4_BUNDLE"
+    )
+  elif [[ -f "$LOCAL_C4_DIR/$DEFAULT_C4_BUNDLE" ]]; then
+    if [[ "$C4_BUNDLE" == "$SEQUENCE_C4_BUNDLE" ]]; then
+      printf '%s: warning: sequence bundle missing (%s); falling back to %s. C4 sequence boundaries may fail.\n' \
+        "$SELF_NAME" "$LOCAL_C4_DIR/$SEQUENCE_C4_BUNDLE" "$DEFAULT_C4_BUNDLE" >&2
+    fi
+    DOCKER_MOUNTS=(-v "$LOCAL_INCLUDE_ROOT":/skill-includes:ro)
+    DOCKER_C4_ARGS=(
+      "-DRELATIVE_INCLUDE=/skill-includes/C4"
+      -I "/skill-includes/C4/$DEFAULT_C4_BUNDLE"
     )
   fi
 
@@ -109,10 +197,17 @@ if "$use_docker"; then
 
   # Run PlantUML in Docker.
   # -i is needed to support -pipe/stdin use-cases.
-  run_with_c4_hint docker run --rm -i \
-    -v "$WORKDIR":/work -w /work \
-    "${DOCKER_MOUNTS[@]}" \
-    "$IMAGE" "${DOCKER_C4_ARGS[@]}" "$@"
+  if "$PIPE_MODE" && [[ -n "$STDIN_CAPTURE" ]]; then
+    run_with_c4_hint docker run --rm -i \
+      -v "$WORKDIR":/work -w /work \
+      "${DOCKER_MOUNTS[@]}" \
+      "$IMAGE" "${DOCKER_C4_ARGS[@]}" "${PASSTHRU_ARGS[@]}" < "$STDIN_CAPTURE"
+  else
+    run_with_c4_hint docker run --rm -i \
+      -v "$WORKDIR":/work -w /work \
+      "${DOCKER_MOUNTS[@]}" \
+      "$IMAGE" "${DOCKER_C4_ARGS[@]}" "${PASSTHRU_ARGS[@]}"
+  fi
   exit $?
 fi
 
@@ -122,7 +217,7 @@ FORMAT="png"
 PIPE_MODE=false
 INPUT_FILE=""
 
-for arg in "$@"; do
+for arg in "${PASSTHRU_ARGS[@]}"; do
   case "$arg" in
     -tpng) FORMAT="png" ;;
     -tsvg) FORMAT="svg" ;;
@@ -146,7 +241,13 @@ URL="${SERVER_URL%/}/plantuml/${FORMAT}"
 
 if "$PIPE_MODE"; then
   if have curl; then
+    if [[ -n "$STDIN_CAPTURE" ]]; then
+      exec curl -sS -H "Content-Type: text/plain" --data-binary @"$STDIN_CAPTURE" "$URL"
+    fi
     exec curl -sS -H "Content-Type: text/plain" --data-binary @- "$URL"
+  fi
+  if [[ -n "$STDIN_CAPTURE" ]]; then
+    exec wget -qO- --header="Content-Type: text/plain" --post-file="$STDIN_CAPTURE" "$URL"
   fi
   exec wget -qO- --header="Content-Type: text/plain" --post-file=- "$URL"
 fi

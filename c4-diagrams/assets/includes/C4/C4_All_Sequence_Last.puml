@@ -1,0 +1,11 @@
+' Preload the full C4-PlantUML stack with sequence macros applied last.
+' RELATIVE_INCLUDE must point at this folder.
+'
+' Use this bundle for C4-styled sequence diagrams because C4_Sequence redefines
+' element, boundary, and relationship macros for sequence semantics.
+!include_once RELATIVE_INCLUDE/C4_Context.puml
+!include_once RELATIVE_INCLUDE/C4_Container.puml
+!include_once RELATIVE_INCLUDE/C4_Component.puml
+!include_once RELATIVE_INCLUDE/C4_Dynamic.puml
+!include_once RELATIVE_INCLUDE/C4_Deployment.puml
+!include_once RELATIVE_INCLUDE/C4_Sequence.puml

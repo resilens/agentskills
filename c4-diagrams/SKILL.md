@@ -221,6 +221,11 @@ Bob --> Alice: Hi
 In the `scripts/` folder of this skill, there is a convenience wrapper
 `scripts/render.sh` to run it either locally or via Docker.
 
+The wrapper preloads the vendored C4 bundle and can auto-detect common C4
+sequence markers (for example `Boundary_End()` / `SHOW_INDEX()`) to switch to a
+sequence-safe preload bundle. If needed, you can force sequence mode with
+`--c4-sequence`.
+
 You can convert a PlantUML file to a raster or vector format as follows:
 
 ```bash
@@ -229,6 +234,39 @@ cat assets/simple.puml | scripts/render.sh -tpng -pipe > simple.png
 
 ```bash
 cat assets/simple.puml | scripts/render.sh -tsvg -pipe > simple.svg
+```
+
+### C4-styled sequence diagram example (with `Boundary_End()`)
+
+This works with `scripts/render.sh` without explicit `!include` lines:
+
+```plantuml
+@startuml payment-sequence
+SHOW_INDEX()
+
+Person(user, "User")
+System(system, "Payments Core")
+
+Container_Boundary(app_boundary, "API Container")
+  Container(api, "Payments API", "Node.js", "Handles payment requests")
+Boundary_End()
+
+Rel(user, api, "Submits payment")
+Rel(api, system, "Calls")
+@enduml
+```
+
+Render:
+
+```bash
+cat docs/diagrams/payment-sequence.puml | scripts/render.sh -tsvg -pipe > docs/diagrams/payment-sequence.svg
+```
+
+If auto-detection misses a sequence-specific file, force the sequence-safe
+preload bundle explicitly:
+
+```bash
+cat docs/diagrams/payment-sequence.puml | scripts/render.sh --c4-sequence -tsvg -pipe > docs/diagrams/payment-sequence.svg
 ```
 
 ## Interactive Explorer Output
@@ -433,6 +471,10 @@ Checks:
 - Confirm you are rendering via `scripts/render.sh` (not raw `plantuml`)
 - Confirm `assets/includes/C4/C4_All.puml` includes the full C4 set (Context,
   Container, Component, Dynamic, Deployment, Sequence)
+- For C4-styled sequence diagrams that use `Boundary_End()`, confirm the
+  sequence-safe bundle `assets/includes/C4/C4_All_Sequence_Last.puml` exists
+  and that `scripts/render.sh` auto-detected sequence markers (or use
+  `--c4-sequence`)
 - Confirm `RELATIVE_INCLUDE` points at the vendored `assets/includes/C4`
   directory (the wrapper injects this automatically)
 - Run `make smoke` in `public/c4-diagrams` to validate preloading across all C4
@@ -441,7 +483,7 @@ Checks:
   diagram looks suspiciously tall or linear
 
 If `scripts/render.sh` fails, it may print a hint about checking
-`C4_All.puml` contents and the injected `RELATIVE_INCLUDE` path.
+preload bundle contents and the injected `RELATIVE_INCLUDE` path.
 
 ### Layout orientation
 

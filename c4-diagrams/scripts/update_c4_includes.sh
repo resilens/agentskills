@@ -48,8 +48,30 @@ patch_local_include "C4_Deployment.puml" "C4_Container.puml"
 patch_local_include "C4_Sequence.puml" "C4_Component.puml"
 
 cat > "$TARGET_DIR/C4_All.puml" <<'EOF'
-' Preload all C4 levels from the local vendored bundle.
+' Preload the full C4-PlantUML stack from the local vendored bundle.
 ' RELATIVE_INCLUDE must point at this folder.
+'
+' Note: C4_Sequence redefines core element/relationship macros for sequence-style
+' rendering. It is included first so later Context/Container/Component includes
+' restore the standard structural macros while sequence helpers (e.g. SHOW_INDEX)
+' remain available.
+!include_once RELATIVE_INCLUDE/C4_Sequence.puml
+!include_once RELATIVE_INCLUDE/C4_Context.puml
+!include_once RELATIVE_INCLUDE/C4_Container.puml
+!include_once RELATIVE_INCLUDE/C4_Component.puml
+!include_once RELATIVE_INCLUDE/C4_Dynamic.puml
+!include_once RELATIVE_INCLUDE/C4_Deployment.puml
+EOF
+
+cat > "$TARGET_DIR/C4_All_Sequence_Last.puml" <<'EOF'
+' Preload the full C4-PlantUML stack with sequence macros applied last.
+' RELATIVE_INCLUDE must point at this folder.
+'
+' Use this bundle for C4-styled sequence diagrams because C4_Sequence redefines
+' element, boundary, and relationship macros for sequence semantics.
+!include_once RELATIVE_INCLUDE/C4_Context.puml
+!include_once RELATIVE_INCLUDE/C4_Container.puml
+!include_once RELATIVE_INCLUDE/C4_Component.puml
 !include_once RELATIVE_INCLUDE/C4_Dynamic.puml
 !include_once RELATIVE_INCLUDE/C4_Deployment.puml
 !include_once RELATIVE_INCLUDE/C4_Sequence.puml

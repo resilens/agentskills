@@ -100,6 +100,19 @@ Rel(user, system, "Uses")
 @enduml
 EOF
 
+run_case sequence_boundary <<'EOF'
+@startuml sequence-boundary-smoke
+SHOW_INDEX()
+Person(user, "User")
+System(system, "System")
+Container_Boundary(app_boundary, "App") 
+  Container(api, "API", "Node.js", "Handles requests")
+Boundary_End()
+Rel(user, api, "Sends request")
+Rel(api, system, "Calls")
+@enduml
+EOF
+
 run_case deployment <<'EOF'
 @startuml deployment-smoke
 Deployment_Node(node1, "App Node", "Docker")

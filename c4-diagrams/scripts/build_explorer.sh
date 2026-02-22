@@ -7,7 +7,9 @@ import html
 import json
 import os
 import re
+import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -135,6 +137,37 @@ def optional_file(path_str: str | None, label: str, base_dir: Path) -> Path | No
 def json_for_html(data: object) -> str:
     raw = json.dumps(data, indent=2, ensure_ascii=False)
     return raw.replace("<", "\\u003c").replace("&", "\\u0026")
+
+
+def _run_git(cwd: Path, *args: str) -> tuple[int, str, str]:
+    try:
+        proc = subprocess.run(
+            ["git", *args],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
+    except FileNotFoundError:
+        return 127, "", "git not found"
+    except Exception as exc:
+        return 1, "", str(exc)
+
+
+def build_provenance(cwd: Path) -> str:
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    commit_display = "unknown"
+    dirty_suffix = ""
+
+    code, stdout, _stderr = _run_git(cwd, "rev-parse", "--short", "HEAD")
+    if code == 0 and stdout:
+        commit_display = stdout
+        dirty_code, dirty_stdout, _ = _run_git(cwd, "status", "--porcelain")
+        if dirty_code == 0 and dirty_stdout:
+            dirty_suffix = " (dirty)"
+
+    return f"Generated: {timestamp} • Commit: {commit_display}{dirty_suffix}"
 
 
 def make_view(view_id: str, label: str, image_rel: str, breadcrumbs: list[str]) -> dict:
@@ -476,13 +509,14 @@ def ensure_mode_args(args: argparse.Namespace) -> None:
         die("flat mode requires --context, --container, and --component")
 
 
-def render_html(template_path: Path, title: str, system_description: str, model: dict, out_path: Path) -> None:
+def render_html(template_path: Path, title: str, system_description: str, provenance: str, model: dict, out_path: Path) -> None:
     if not template_path.is_file():
         die(f"template not found: {template_path}")
     template = read_text(template_path)
     html_out = template
     html_out = html_out.replace("__TITLE__", html.escape(title, quote=True))
     html_out = html_out.replace("__SYSTEM_DESCRIPTION__", html.escape(system_description, quote=True))
+    html_out = html_out.replace("__PROVENANCE__", html.escape(provenance, quote=True))
     html_out = html_out.replace("__EXPLORER_MODEL_JSON__", json_for_html(model))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html_out, encoding="utf-8")
@@ -502,7 +536,8 @@ def main() -> None:
     else:
         model, title, system_description = build_flat_model(args, out_dir, cwd)
 
-    render_html(TEMPLATE_PATH, title, system_description, model, out_path)
+    provenance = build_provenance(cwd)
+    render_html(TEMPLATE_PATH, title, system_description, provenance, model, out_path)
     print(f"{SELF_NAME}: wrote explorer HTML: {out_path}", file=sys.stderr)
 
 

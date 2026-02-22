@@ -383,6 +383,10 @@ Manifest checklist:
 - Header includes:
   - C4 intro paragraph and link to the C4 model
   - README-derived system summary paragraph
+- Footer includes provenance metadata for traceability:
+  - UTC creation timestamp
+  - short git commit hash
+  - optional `(dirty)` marker when generated from a repo with uncommitted changes
 - Clicking a diagram opens it in a fullscreen viewer; close with Escape,
   backdrop click, or the close button.
 - Prefer SVG inputs when available; use PNG otherwise.

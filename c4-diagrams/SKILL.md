@@ -86,6 +86,89 @@ Recommended naming conventions (manifest paths are authoritative):
   - `<system>-<container>-components.(svg|png)`
 - `<basename>-c4-explorer.html`
 
+## Optional companion ER diagram
+
+When the architecture you are modeling depends on a relational data model,
+consider producing a **focused ER diagram** as a companion artifact.
+
+Use an ER diagram when:
+- the user asks about tables, schema, foreign keys, or data relationships
+- the modeled workflows clearly depend on specific database tables
+- sequence/component diagrams reference concrete persisted entities
+- a focused data-model view would clarify the workflow or subsystem
+
+Do not generate a full-database ER diagram by default. Prefer a
+**scenario-scoped ER diagram** that only includes the tables directly involved
+in the workflows being modeled.
+
+### ER diagram scope rules
+
+- Include only the tables that are directly relevant to the scenario.
+- Include primary keys and foreign keys.
+- Include only a small set of important non-key fields that help explain the
+  flow.
+- Prefer readability over exhaustiveness.
+- If the schema is large, create one ER diagram per scenario or subsystem
+  instead of one global diagram.
+
+Examples:
+- Workspace creation/admin management:
+  - `workspaces`
+  - `workspace_users`
+  - `profiles`
+  - `workspace_site`
+- Survey delivery/open tracking:
+  - `surveys`
+  - `survey_recipients`
+  - `workspace_site_contact`
+  - related parent tables such as `projects` or `workspace_site`
+
+### Repo conventions for ER diagrams
+
+- Store ER diagram sources in `$REPO_ROOT/docs/diagrams`.
+- Use names that make the scope explicit, for example:
+  - `<basename>-er.puml`
+  - `<basename>-er.svg`
+  - `<basename>-er.png`
+  - or for narrower scopes:
+    - `<basename>-workspace-survey-er.puml`
+    - `<basename>-project-measures-er.puml`
+- Render PNG by default.
+- Honor SVG requests in addition to the default PNG.
+
+### Relationship to C4 outputs
+
+ER diagrams are **companion artifacts**, not replacements for C4 diagrams.
+
+- Keep the primary deliverables as C4 views first.
+- Add ER diagrams only when they materially improve understanding of the
+  modeled system.
+- If the explorer tooling supports it cleanly, include the ER diagram as a
+  companion view in the generated explorer hierarchy.
+- If the explorer does not support ER views cleanly, still generate the ER
+  artifact separately and mention it in the response.
+
+### ER diagram content guidelines
+
+- Show:
+  - table names
+  - PK/FK columns
+  - important workflow columns (for example `created_by`, `survey_id`,
+    `contact_id`, `opened_at`, `sent_at`)
+- Avoid:
+  - every column in the table
+  - low-value audit/meta columns unless they matter to the workflow
+  - unrelated catalog/reference tables unless required for understanding
+
+### Source-of-truth guidance
+
+When generating ER diagrams:
+- Prefer actual schema definitions from migrations, DDL, or database metadata
+  over product docs.
+- Use product docs only as a fallback or to clarify intent.
+- If code and docs disagree, prefer the schema/code and state the inference
+  clearly.
+
 ## C4 Planning Step (Do This Before Drawing)
 
 Before generating diagrams, plan the C4 scope explicitly:
@@ -100,6 +183,17 @@ Before generating diagrams, plan the C4 scope explicitly:
 - Add Deployment and Sequence diagrams only where they clarify runtime behavior
   or a critical scenario.
 
+### Planning rule for ER diagrams
+
+Before drawing an ER diagram:
+- identify the workflow being explained
+- list the minimum table set involved
+- confirm the parent-child and junction-table relationships
+- decide whether the ER diagram belongs as:
+  - a companion to a sequence diagram
+  - a companion to a component/container view
+  - or a standalone data-model appendix
+
 ## Always render, always validate
 
 When using the skill, always remember:
@@ -112,6 +206,11 @@ When using the skill, always remember:
   - no overlapping text labels
   - context/container diagrams should use the 2D space (avoid tall one-column
     "string" layouts)
+- For companion ER diagrams:
+  - verify that all shown FK relationships are supported by schema/code
+    evidence
+  - verify that the diagram is legible and not overcrowded
+  - reduce scope if the result becomes too dense
 
 ### Layout stabilization rule (required for larger L1/L2 diagrams)
 

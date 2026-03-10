@@ -36,3 +36,14 @@ install-skills: $(TARGET_SKILLS:%=%/SKILL.md) ## Install public skills into $(SK
 		rm -rf "$(SKILLS_DIR)/$$name"; \
 		cp -R "$$skill" "$(SKILLS_DIR)/$$name"; \
 	done
+	@display_dir="$(SKILLS_DIR)"; \
+	if [ "$$display_dir" = "$(HOME)/.agents/skills" ]; then \
+		display_dir="~/.agents/skills"; \
+	fi; \
+	index_file="$(SKILLS_DIR)/INDEX.md"; \
+	printf "# Installed skills\n\n" > "$$index_file"; \
+	for skill in $(TARGET_SKILLS); do \
+		name=$$(basename "$$skill"); \
+		printf "@%s/%s/SKILL.md\n" "$$display_dir" "$$name" >> "$$index_file"; \
+	done; \
+	printf "Wrote index %s\n" "$$index_file"

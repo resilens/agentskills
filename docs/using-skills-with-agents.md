@@ -27,13 +27,14 @@ make install-skills
 ```
 
 Defaults:
-- `SKILLS_DIR` defaults to `~/.agents/skills`
-- Override destination: `make install-skills SKILLS_DIR=/path/your-agent-uses`
+- `make install-skills` installs to `~/.agents/skills`, `~/.codex/skills`, and `~/.claude/skills`
+- Override with one destination: `make install-skills SKILLS_DIR=/path/your-agent-uses`
 
 ## Runtime docs
 
 ### Codex
 - Install local skills with `make install-skills`.
+- By default this writes to `~/.codex/skills`.
 - Official docs:
   - [Codex CLI](https://developers.openai.com/codex/cli)
   - [Codex Skills](https://developers.openai.com/codex/skills)
@@ -41,6 +42,7 @@ Defaults:
 
 ### Claude Code
 - Install local skills with `make install-skills`.
+- By default this writes to `~/.claude/skills`.
 - Official docs:
   - [Claude Code overview](https://docs.anthropic.com/en/docs/claude-code/overview)
   - [Claude Code settings](https://docs.anthropic.com/en/docs/claude-code/settings)

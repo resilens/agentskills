@@ -8,16 +8,17 @@ This repository contains the public subset of the Resilens shared skills library
 - Install `uv`: <https://docs.astral.sh/uv/>
 - `make validate` requires `uvx`.
 - `make install-skills` does not require `uv`.
+- By default it installs into `~/.agents/skills`, `~/.codex/skills`, and `~/.claude/skills`.
 
 ### How To Use
 ```bash
 # validate all public skills
 make validate
 
-# install all public skills to the default location (~/.agents/skills)
+# install all public skills to the default shared locations
 make install-skills
 
-# install to a custom destination used by your agent runtime
+# install to one explicit destination used by your agent runtime
 make install-skills SKILLS_DIR=/path/to/skills
 ```
 

@@ -1,8 +1,9 @@
 .PHONY: help validate install-skills
 
-# Destination directory for installed skills.
-# Override as needed, e.g. `make install-skills SKILLS_DIR=/path/to/skills`.
-SKILLS_DIR ?= $(HOME)/.agents/skills
+# Default install destinations for shared agent skill homes.
+# Override with SKILLS_DIR to install to one directory only.
+DEFAULT_SKILLS_DIRS := $(HOME)/.agents/skills $(HOME)/.codex/skills $(HOME)/.claude/skills
+SKILLS_DIR ?=
 SKILL_DIRS := $(patsubst %/SKILL.md,%,$(wildcard */SKILL.md))
 TARGET_SKILLS := $(SKILL_DIRS)
 
@@ -24,26 +25,34 @@ validate: $(TARGET_SKILLS:%=%/SKILL.md) ## Validate all public skills
 		uvx --from skills-ref agentskills validate "$$skill"; \
 	done
 
-install-skills: $(TARGET_SKILLS:%=%/SKILL.md) ## Install public skills into $(SKILLS_DIR)
-	mkdir -p "$(SKILLS_DIR)"
+install-skills: $(TARGET_SKILLS:%=%/SKILL.md) ## Install public skills into default shared homes, or SKILLS_DIR if set
 	@if [ -z "$(TARGET_SKILLS)" ]; then \
 		printf "No skills found (expected */SKILL.md).\n"; \
 		exit 1; \
 	fi
-	@for skill in $(TARGET_SKILLS); do \
-		name=$$(basename "$$skill"); \
-		printf "Install skill $$name (from $$skill)\n"; \
-		rm -rf "$(SKILLS_DIR)/$$name"; \
-		cp -R "$$skill" "$(SKILLS_DIR)/$$name"; \
-	done
-	@display_dir="$(SKILLS_DIR)"; \
-	if [ "$$display_dir" = "$(HOME)/.agents/skills" ]; then \
-		display_dir="~/.agents/skills"; \
+	@set -- $(DEFAULT_SKILLS_DIRS); \
+	if [ -n "$(SKILLS_DIR)" ]; then \
+		set -- "$(SKILLS_DIR)"; \
 	fi; \
-	index_file="$(SKILLS_DIR)/INDEX.md"; \
-	printf "# Installed skills\n\n" > "$$index_file"; \
-	for skill in $(TARGET_SKILLS); do \
-		name=$$(basename "$$skill"); \
-		printf "@%s/%s/SKILL.md\n" "$$display_dir" "$$name" >> "$$index_file"; \
-	done; \
-	printf "Wrote index %s\n" "$$index_file"
+	for skills_dir in "$$@"; do \
+		mkdir -p "$$skills_dir"; \
+		for skill in $(TARGET_SKILLS); do \
+			name=$$(basename "$$skill"); \
+			printf "Install skill %s (from %s) -> %s\n" "$$name" "$$skill" "$$skills_dir"; \
+			rm -rf "$$skills_dir/$$name"; \
+			cp -R "$$skill" "$$skills_dir/$$name"; \
+		done; \
+		display_dir="$$skills_dir"; \
+		case "$$display_dir" in \
+			"$(HOME)/.agents/skills") display_dir="~/.agents/skills" ;; \
+			"$(HOME)/.codex/skills") display_dir="~/.codex/skills" ;; \
+			"$(HOME)/.claude/skills") display_dir="~/.claude/skills" ;; \
+		esac; \
+		index_file="$$skills_dir/INDEX.md"; \
+		printf "# Installed skills\n\n" > "$$index_file"; \
+		for skill in $(TARGET_SKILLS); do \
+			name=$$(basename "$$skill"); \
+			printf "@%s/%s/SKILL.md\n" "$$display_dir" "$$name" >> "$$index_file"; \
+		done; \
+		printf "Wrote index %s\n" "$$index_file"; \
+	done

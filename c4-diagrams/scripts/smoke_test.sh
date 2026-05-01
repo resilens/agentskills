@@ -34,8 +34,8 @@ run_case() {
   printf '%s: ok %s -> %s\n' "$SELF_NAME" "$name" "$out" >&2
 
   # Heuristic warning only (unless C4_LAYOUT_FAIL_ON_WARN=1) for common
-  # top-down-string layout failures in L1/L2 diagrams.
-  if [[ -x "$CHECK_LAYOUT_SH" && ( "$name" == "context" || "$name" == "container" ) ]]; then
+  # layout failures: tall L1/L2 diagrams and cramped deployment boundaries.
+  if [[ -x "$CHECK_LAYOUT_SH" && ( "$name" == "context" || "$name" == "container" || "$name" == "deployment" ) ]]; then
     bash "$CHECK_LAYOUT_SH" "$out" >&2 || return 1
   fi
 }

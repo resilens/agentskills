@@ -204,8 +204,15 @@ When using the skill, always remember:
   regarding layout:
   - it should be preferably landscape
   - no overlapping text labels
+  - no boundary-title collisions with nested nodes/containers
   - context/container diagrams should use the 2D space (avoid tall one-column
     "string" layouts)
+- For deployment diagrams specifically:
+  - check for cramped node headers before rewriting the whole layout
+  - treat `Deployment_Node_L/R`, `Node_L/R`, and wrap-width tuning as the
+    first-line fixes
+  - if `Rel_*` labels become cluttered, prefer plain PlantUML arrows for the
+    relationships while keeping C4 nodes/containers
 - For companion ER diagrams:
   - verify that all shown FK relationships are supported by schema/code
     evidence
@@ -324,6 +331,10 @@ The wrapper preloads the vendored C4 bundle and can auto-detect common C4
 sequence markers (for example `Boundary_End()` / `SHOW_INDEX()`) to switch to a
 sequence-safe preload bundle. If needed, you can force sequence mode with
 `--c4-sequence`.
+
+Do not use `SHOW_INDEX()` in Context, Container, or Deployment diagrams with
+this wrapper. It is treated as a sequence marker and can switch rendering into
+sequence-safe preload mode, which is the wrong mode for those diagram types.
 
 You can convert a PlantUML file to a raster or vector format as follows:
 
@@ -513,8 +524,10 @@ The command fails if any render fails.
 Optional layout heuristic helper:
 - `scripts/check_layout_aspect.sh <svg>` warns when a diagram is suspiciously
   tall (e.g., top-down "string" layout instead of balanced 2D usage).
-- `scripts/smoke_test.sh` runs this check automatically for context/container
-  smoke outputs.
+- The same check also warns when a boundary title block is too close to nested
+  content, which is a common deployment-node legibility failure.
+- `scripts/smoke_test.sh` runs this check automatically for
+  context/container/deployment smoke outputs.
 - Set `C4_LAYOUT_FAIL_ON_WARN=1` to make suspicious aspect ratios fail CI/smoke
   runs.
 
@@ -583,7 +596,8 @@ Checks:
 - Run `make smoke` in `public/c4-diagrams` to validate preloading across all C4
   levels
 - Run `scripts/check_layout_aspect.sh <diagram.svg>` if a context/container
-  diagram looks suspiciously tall or linear
+  diagram looks suspiciously tall or linear, or if a deployment boundary title
+  looks crowded against nested nodes/containers
 
 If `scripts/render.sh` fails, it may print a hint about checking
 preload bundle contents and the injected `RELATIVE_INCLUDE` path.
@@ -612,6 +626,52 @@ Rel_D(a, c, "Down")    ' c below a
 Rel_L(a, d, "Left")    ' d left of a
 Rel_R(a, e, "Right")   ' e right of a
 BiRel_R(x, y, "Bidirectional to the right")
+```
+
+For deployment diagrams, explicitly prefer `Deployment_Node_L/R` and `Node_L/R`
+when sibling nodes need clearer left/right anchoring. Generic `Deployment_Node`
+plus `Rel(...)` is often not enough once nested runtime boundaries start to
+crowd each other.
+
+### Deployment legibility
+
+When a deployment diagram starts looking cramped, apply these fixes in this
+order before redrawing the whole view:
+
+- Use `Deployment_Node_L/R` and `Node_L/R` to spread sibling runtime nodes
+  horizontally.
+- Tune the C4 deployment wrapping variables first:
+  - `$NODE_TYPE_MAX_CHAR_WIDTH`: wraps the node type line
+  - `$NODE_DESCR_MAX_CHAR_WIDTH`: wraps the node description block
+  - `$DEFAULT_WRAP_WIDTH`: global fallback wrapping width
+- Re-check boundary title spacing after each change. A readable overall aspect
+  ratio is not enough if long node headers collide with nested content.
+- If C4 `Rel_*` labels become cluttered, switch those relationships to plain
+  PlantUML arrows and keep the C4 nodes/containers. This is the preferred
+  fallback for dense deployment views.
+
+Example:
+
+```plantuml
+@startuml
+' C4 macros are auto-loaded by scripts/render.sh
+LAYOUT_LANDSCAPE()
+
+!$NODE_TYPE_MAX_CHAR_WIDTH = 18
+!$NODE_DESCR_MAX_CHAR_WIDTH = 22
+!$DEFAULT_WRAP_WIDTH = 24
+
+Deployment_Node(cluster, "Kubernetes Cluster", "k3s", "Primary runtime boundary") {
+  Deployment_Node_L(api_node, "API Node", "VM", "Ingress and API workloads") {
+    Container(api, "API", "FastAPI", "Handles requests")
+  }
+  Deployment_Node_R(worker_node, "Worker Node", "VM", "Async worker workloads") {
+    Container(worker, "Worker", "Python", "Processes jobs")
+  }
+}
+
+api --> worker : Publishes jobs
+@enduml
 ```
 
 ### Arrange elements without relationships

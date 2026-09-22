@@ -7,19 +7,18 @@ This repository contains the public subset of the Resilens shared skills library
 ### Prerequisites
 - Install `uv`: <https://docs.astral.sh/uv/>
 - `make validate` requires `uvx`.
-- `make install-skills` does not require `uv`.
-- By default it installs into `~/.agents/skills`, `~/.codex/skills`, and `~/.claude/skills`.
+- Install Node.js and npm to run `npx skills`.
 
 ### How To Use
 ```bash
 # validate all public skills
 make validate
 
-# install all public skills to the default shared locations
+# copy all public skills to global Codex and Claude Code directories
 make install-skills
 
-# install to one explicit destination used by your agent runtime
-make install-skills SKILLS_DIR=/path/to/skills
+# copy one public skill to Codex only
+npx skills add . --skill c4-diagrams --agent codex --global --copy --yes
 ```
 
 ### Structure

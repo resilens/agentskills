@@ -12,11 +12,11 @@ This repository contains [Agent Skills](https://agentskills.io) intended for pub
 ## Prerequisites
 - Install `uv`: <https://docs.astral.sh/uv/>
 - `make validate` requires `uvx`.
-- `make install-skills` does not require `uv`.
+- Install Node.js and npm to run `npx skills`.
 
 ## Mental model
 - A skill is a directory containing `SKILL.md` plus optional scripts/assets.
-- Install skills into the directory used by your runtime.
+- Install skills with the Vercel skills CLI.
 
 ## Quickstart
 From this public repo:
@@ -26,23 +26,21 @@ make validate
 make install-skills
 ```
 
-Defaults:
-- `make install-skills` installs to `~/.agents/skills`, `~/.codex/skills`, and `~/.claude/skills`
-- Override with one destination: `make install-skills SKILLS_DIR=/path/your-agent-uses`
+The target delegates to `npx skills add . --skill '*' --agent codex --agent claude-code --global --copy --yes`.
+Run that command directly to select skills, use project-local scope, or target a
+different set of runtimes.
 
 ## Runtime docs
 
 ### Codex
-- Install local skills with `make install-skills`.
-- By default this writes to `~/.codex/skills`.
+- Install with `npx skills add resilens/agentskills --skill '*' --agent codex --global --copy --yes`.
 - Official docs:
   - [Codex CLI](https://developers.openai.com/codex/cli)
   - [Codex Skills](https://developers.openai.com/codex/skills)
   - [Codex configuration basics](https://developers.openai.com/codex/configuration/config-basics)
 
 ### Claude Code
-- Install local skills with `make install-skills`.
-- By default this writes to `~/.claude/skills`.
+- Install with `npx skills add resilens/agentskills --skill '*' --agent claude-code --global --copy --yes`.
 - Official docs:
   - [Claude Code overview](https://docs.anthropic.com/en/docs/claude-code/overview)
   - [Claude Code settings](https://docs.anthropic.com/en/docs/claude-code/settings)
@@ -52,5 +50,5 @@ Defaults:
 
 ## Troubleshooting
 - Skill not found: verify installed destination path and that each skill directory contains `SKILL.md`.
-- Updated skill not reflected: reinstall with `make install-skills` and restart/reload the runtime.
+- Updated skill not reflected: rerun the `npx skills add` command and restart/reload the runtime.
 - Validation fails in restricted environments: rerun where `uvx --from skills-ref` can access package sources.

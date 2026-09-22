@@ -1,9 +1,10 @@
 .DELETE_ON_ERROR:
 SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
-.PHONY: help validate install-skills
+.PHONY: help validate install-skills uninstall-skills
 SKILL_DIRS := $(patsubst %/SKILL.md,%,$(wildcard */SKILL.md))
 TARGET_SKILLS := $(SKILL_DIRS)
+SKILL_NAMES := $(notdir $(SKILL_DIRS))
 
 help: ## output help for all targets
 	@echo "Public Resilens skills"
@@ -25,3 +26,10 @@ validate: $(TARGET_SKILLS:%=%/SKILL.md) ## Validate all public skills
 
 install-skills: ## Copy all public skills to global Codex and Claude Code skill directories
 	npx skills add . --skill '*' --agent codex --agent claude-code --global --copy --yes
+
+uninstall-skills: ## Remove these public skills from global Codex and Claude Code directories
+	@if [ -z "$(SKILL_NAMES)" ]; then \
+		printf "No skills found (expected */SKILL.md).\n"; \
+		exit 1; \
+	fi
+	npx skills remove --global --agent codex --agent claude-code --yes $(SKILL_NAMES)

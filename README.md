@@ -17,6 +17,9 @@ make validate
 # copy all public skills to global Codex and Claude Code directories
 make install-skills
 
+# remove these public skills from global Codex and Claude Code directories
+make uninstall-skills
+
 # copy one public skill to Codex only
 npx skills add . --skill c4-diagrams --agent codex --global --copy --yes
 ```

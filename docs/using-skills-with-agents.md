@@ -30,6 +30,13 @@ The target delegates to `npx skills add . --skill '*' --agent codex --agent clau
 Run that command directly to select skills, use project-local scope, or target a
 different set of runtimes.
 
+To remove only the skills defined in this checkout from the global Codex and Claude
+Code directories, run:
+
+```bash
+make uninstall-skills
+```
+
 ## Runtime docs
 
 ### Codex

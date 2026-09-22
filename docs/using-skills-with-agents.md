@@ -37,6 +37,9 @@ Code directories, run:
 make uninstall-skills
 ```
 
+`install-skills`, `list-installed-skills`, and `uninstall-skills` default to Codex
+and Claude Code. Override the target runtimes with `SKILL_AGENTS="codex cursor"`.
+
 ## Runtime docs
 
 ### Codex

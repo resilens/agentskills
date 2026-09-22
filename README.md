@@ -17,6 +17,9 @@ make validate
 # copy all public skills to global Codex and Claude Code directories
 make install-skills
 
+# list globally installed skills for Codex and Claude Code
+make list-installed-skills
+
 # remove these public skills from global Codex and Claude Code directories
 make uninstall-skills
 

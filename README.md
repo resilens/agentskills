@@ -34,4 +34,4 @@ Current public skills:
 | Skill | Description | Author | Version |
 | --- | --- | --- | --- |
 | `c4-diagrams` | Use for architectural analysis and documentation; create C4 PlantUML diagrams with clear actors, system boundaries, containers, components, and relationships. | Stephan | 0.1 |
-| `writing-workshop` | Use for writing assistance, editing, proofreading, or feedback on prose. Workshop drafts in focused passes without encouragement or ghostwriting, preserving the author's voice and offering conservative help with awkward English. | — | 0.1 |
+| `editorial-workshop` | Use for writing assistance, editing, proofreading, or feedback on prose. Workshop drafts in focused passes without encouragement or ghostwriting, preserving the author's voice and offering conservative help with awkward English. | — | 0.1 |

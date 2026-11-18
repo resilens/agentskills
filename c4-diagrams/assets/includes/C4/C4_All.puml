@@ -1,13 +1,18 @@
-' Preload the full C4-PlantUML stack from the local vendored bundle.
+' Preload the structural C4-PlantUML stack from the local vendored bundle.
 ' RELATIVE_INCLUDE must point at this folder.
 '
-' Note: C4_Sequence redefines core element/relationship macros for sequence-style
-' rendering. It is included first so later Context/Container/Component includes
-' restore the standard structural macros while sequence helpers (e.g. SHOW_INDEX)
-' remain available.
-!include_once RELATIVE_INCLUDE/C4_Sequence.puml
+' C4_Sequence is left out: it redefines element and relationship macros for
+' sequence diagrams, and render.sh switches to C4_All_Sequence_Last.puml when it
+' detects sequence markers.
+'
+' C4_Dynamic is left out too: it replaces Rel with a version that numbers every
+' relationship, which is wrong in context, container and component diagrams. A
+' dynamic diagram adds `!include_once RELATIVE_INCLUDE/C4_Dynamic.puml` itself.
+'
+' Each file includes its parent with a plain !include, so keep this order:
+' parents before children. Newer PlantUML versions (1.2026.10) reject an
+' !include_once of a file that an earlier plain !include already pulled in.
 !include_once RELATIVE_INCLUDE/C4_Context.puml
 !include_once RELATIVE_INCLUDE/C4_Container.puml
 !include_once RELATIVE_INCLUDE/C4_Component.puml
-!include_once RELATIVE_INCLUDE/C4_Dynamic.puml
 !include_once RELATIVE_INCLUDE/C4_Deployment.puml

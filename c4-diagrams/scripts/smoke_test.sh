@@ -68,7 +68,7 @@ System_Boundary(s1, "System") {
   Container(api, "API", "HTTP", "Handles requests")
   ContainerDb(db, "DB", "PostgreSQL", "Stores data")
 }
-Rel(user, api, "Uses")
+Rel_R(user, api, "Uses")
 Rel(api, db, "Reads/Writes")
 @enduml
 EOF
@@ -85,6 +85,7 @@ EOF
 
 run_case dynamic <<'EOF'
 @startuml dynamic-smoke
+!include_once RELATIVE_INCLUDE/C4_Dynamic.puml
 Person(user, "User")
 System(system, "System")
 RelIndex(1, user, system, "Uses")

@@ -5,9 +5,8 @@ license: Apache-2.0
 metadata:
   author: Stephan
   version: "0.1"
-allowed-tools:
-  - scripts/render.sh
-  - scripts/build_explorer.sh
+  visibility: public
+allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/render.sh *) Bash(${CLAUDE_SKILL_DIR}/scripts/build_explorer.sh *)
 ---
 
 # C4 Diagrams with PlantUML
@@ -40,6 +39,14 @@ model. This skill covers includes, elements, relationships, and layout control
 ## Repo conventions
 
 When used inside a repository:
+- Paths in this skill: `scripts/…` and `assets/…` are inside this skill's
+  directory (the folder that contains this `SKILL.md`), written `$SKILL_DIR` in
+  the commands below. Diagram paths such as `docs/diagrams/…` are in the user's
+  repository. Run commands from the repository root and call the scripts by their full
+  path, with the skill's directory written out rather than held in a shell
+  variable: `$SKILL_DIR/scripts/render.sh` stands for
+  `/path/to/c4-diagrams/scripts/render.sh`. The scripts find their own assets,
+  so they work from any directory.
 - Store diagram sources in `$REPO_ROOT/docs/diagrams` only. Alternatively, us a
   `./diagrams/` folder directly next to some other files, if the user wants it
   that way.
@@ -288,6 +295,8 @@ where pure auto-layout is often fine.
 ### Supporting views (often used)
 
 * **Dynamic diagram (scenario):** sequence of calls across elements for a use case.
+  Start it with `!include_once RELATIVE_INCLUDE/C4_Dynamic.puml` right after
+  `@startuml`; see [Include the library](#include-the-library).
 * **Deployment diagram:** nodes (environments, VMs, k8s, serverless) and which containers
   run where.
 
@@ -339,11 +348,11 @@ sequence-safe preload mode, which is the wrong mode for those diagram types.
 You can convert a PlantUML file to a raster or vector format as follows:
 
 ```bash
-cat assets/simple.puml | scripts/render.sh -tpng -pipe > simple.png
+cat $SKILL_DIR/assets/simple.puml | $SKILL_DIR/scripts/render.sh -tpng -pipe > simple.png
 ``` 
 
 ```bash
-cat assets/simple.puml | scripts/render.sh -tsvg -pipe > simple.svg
+cat $SKILL_DIR/assets/simple.puml | $SKILL_DIR/scripts/render.sh -tsvg -pipe > simple.svg
 ```
 
 ### C4-styled sequence diagram example (with `Boundary_End()`)
@@ -369,14 +378,14 @@ Rel(api, system, "Calls")
 Render:
 
 ```bash
-cat docs/diagrams/payment-sequence.puml | scripts/render.sh -tsvg -pipe > docs/diagrams/payment-sequence.svg
+cat docs/diagrams/payment-sequence.puml | $SKILL_DIR/scripts/render.sh -tsvg -pipe > docs/diagrams/payment-sequence.svg
 ```
 
 If auto-detection misses a sequence-specific file, force the sequence-safe
 preload bundle explicitly:
 
 ```bash
-cat docs/diagrams/payment-sequence.puml | scripts/render.sh --c4-sequence -tsvg -pipe > docs/diagrams/payment-sequence.svg
+cat docs/diagrams/payment-sequence.puml | $SKILL_DIR/scripts/render.sh --c4-sequence -tsvg -pipe > docs/diagrams/payment-sequence.svg
 ```
 
 ## Interactive Explorer Output
@@ -389,7 +398,7 @@ Use this when the repo maps cleanly to one main system and one primary
 component diagram.
 
 ```bash
-scripts/build_explorer.sh \
+$SKILL_DIR/scripts/build_explorer.sh \
   --out docs/diagrams/payments-c4-explorer.html \
   --title "Payments Architecture C4" \
   --readme README.md \
@@ -414,7 +423,7 @@ Use a JSON manifest when the repo contains multiple systems, multiple
 containers, and multiple component diagrams.
 
 ```bash
-scripts/build_explorer.sh \
+$SKILL_DIR/scripts/build_explorer.sh \
   --manifest docs/diagrams/c4-explorer.json \
   --out docs/diagrams/platform-c4-explorer.html
 ```
@@ -422,7 +431,7 @@ scripts/build_explorer.sh \
 You can override manifest metadata at runtime:
 
 ```bash
-scripts/build_explorer.sh \
+$SKILL_DIR/scripts/build_explorer.sh \
   --manifest docs/diagrams/c4-explorer.json \
   --out docs/diagrams/platform-c4-explorer.html \
   --title "Platform C4 Explorer" \
@@ -504,10 +513,10 @@ Manifest checklist:
 ### Smoke test workflow (C4 preload validation)
 
 Use the built-in smoke test to catch regressions in the vendored C4 preload
-bundle or render wrapper:
+bundle or render wrapper. Run it from this skill's directory (the folder that
+contains this `SKILL.md`):
 
 ```bash
-cd public/c4-diagrams
 make smoke
 ```
 
@@ -564,9 +573,29 @@ diagram:
   `System_Ext`, `Rel`, `Rel_*`, `Lay_*`)
 - `C4_Container`
 - `C4_Component`
-- `C4_Dynamic`
 - `C4_Deployment`
-- `C4_Sequence`
+- `C4_Sequence`, only for sequence diagrams: when `scripts/render.sh` detects
+  sequence markers (or gets `--c4-sequence`), it preloads
+  `assets/includes/C4/C4_All_Sequence_Last.puml` instead
+
+`C4_Dynamic` is not preloaded, because it numbers every `Rel` ("1: Uses"), which
+is only right in a dynamic diagram. A dynamic diagram includes it itself, right
+after `@startuml`:
+
+``` plantuml
+@startuml checkout-dynamic
+!include_once RELATIVE_INCLUDE/C4_Dynamic.puml
+
+Person(customer, "Customer")
+Container(web, "Web App", "React")
+Container(api, "API", "FastAPI")
+
+Rel(customer, web, "Places order")
+Rel(web, api, "POST /orders")
+@enduml
+```
+
+Without that line, `RelIndex` and the other dynamic macros are undefined.
 
 ``` plantuml
 ' Preferred with this skill: no explicit include required.
@@ -585,16 +614,23 @@ Common symptoms:
 
 Checks:
 - Confirm you are rendering via `scripts/render.sh` (not raw `plantuml`)
-- Confirm `assets/includes/C4/C4_All.puml` includes the full C4 set (Context,
-  Container, Component, Dynamic, Deployment, Sequence)
+- Confirm `assets/includes/C4/C4_All.puml` includes the structural C4 set
+  (Context, Container, Component, Deployment), parents first
+- `RelIndex` undefined, or a dynamic diagram without step numbers: add
+  `!include_once RELATIVE_INCLUDE/C4_Dynamic.puml` after `@startuml`
+- Step numbers ("1: Uses") in a context, container or component diagram: the
+  diagram, or the preload bundle, includes `C4_Dynamic`; remove it
+- `This file has already been included` means a bundle uses `!include_once` on a
+  file that an earlier plain `!include` already pulled in. Newer PlantUML
+  versions reject that, so keep parents before children in the bundles
 - For C4-styled sequence diagrams that use `Boundary_End()`, confirm the
   sequence-safe bundle `assets/includes/C4/C4_All_Sequence_Last.puml` exists
   and that `scripts/render.sh` auto-detected sequence markers (or use
   `--c4-sequence`)
 - Confirm `RELATIVE_INCLUDE` points at the vendored `assets/includes/C4`
   directory (the wrapper injects this automatically)
-- Run `make smoke` in `public/c4-diagrams` to validate preloading across all C4
-  levels
+- Run `make smoke` in this skill's directory to validate preloading across all
+  C4 levels
 - Run `scripts/check_layout_aspect.sh <diagram.svg>` if a context/container
   diagram looks suspiciously tall or linear, or if a deployment boundary title
   looks crowded against nested nodes/containers

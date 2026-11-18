@@ -24,7 +24,7 @@ make list-installed-skills
 make uninstall-skills
 
 # copy one public skill to Codex only
-npx skills add . --skill c4-diagrams --agent codex --global --copy --yes
+npx --yes skills@1.9.0 add . --skill c4-diagrams --agent codex --global --copy --yes
 ```
 
 ### Structure

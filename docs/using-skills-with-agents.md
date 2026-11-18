@@ -26,7 +26,7 @@ make validate
 make install-skills
 ```
 
-The target delegates to `npx skills add . --skill '*' --agent codex --agent claude-code --global --copy --yes`.
+The target delegates to `npx --yes skills@1.9.0 add . --skill '*' --agent codex --agent claude-code --global --copy --yes`.
 Run that command directly to select skills, use project-local scope, or target a
 different set of runtimes.
 
@@ -43,14 +43,14 @@ and Claude Code. Override the target runtimes with `SKILL_AGENTS="codex cursor"`
 ## Runtime docs
 
 ### Codex
-- Install with `npx skills add resilens/agentskills --skill '*' --agent codex --global --copy --yes`.
+- Install with `npx --yes skills@1.9.0 add resilens/agentskills --skill '*' --agent codex --global --copy --yes`.
 - Official docs:
   - [Codex CLI](https://developers.openai.com/codex/cli)
   - [Codex Skills](https://developers.openai.com/codex/skills)
   - [Codex configuration basics](https://developers.openai.com/codex/configuration/config-basics)
 
 ### Claude Code
-- Install with `npx skills add resilens/agentskills --skill '*' --agent claude-code --global --copy --yes`.
+- Install with `npx --yes skills@1.9.0 add resilens/agentskills --skill '*' --agent claude-code --global --copy --yes`.
 - Official docs:
   - [Claude Code overview](https://docs.anthropic.com/en/docs/claude-code/overview)
   - [Claude Code settings](https://docs.anthropic.com/en/docs/claude-code/settings)
